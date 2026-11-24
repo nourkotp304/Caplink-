@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CAPLINK | منصة ربط المشروعات بالمستثمرين</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#12263A;--gold:#B8893A;--bg:#F2F4F6;--mut:#5E6B78;--line:#DFE5EA;--ok:#2E7D5B;--bad:#B3413A}
+*{box-sizing:border-box}
+body{margin:0;font-family:Tajawal,system-ui,sans-serif;background:var(--bg);color:var(--ink);padding-bottom:84px;line-height:1.6}
+header{background:var(--ink);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:5}
+.logo{font-weight:800;font-size:22px;letter-spacing:1px;direction:ltr}.logo b{color:var(--gold)}
+main{max-width:640px;margin:0 auto;padding:16px}
+h2{font-size:20px;margin:6px 0 14px}h3{margin:0 0 4px;font-size:17px}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.mut{color:var(--mut);font-size:14px}
+label{display:block;font-weight:700;font-size:14px;margin:12px 0 4px}
+input,select,textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fff;color:var(--ink)}
+textarea{min-height:80px}
+button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:12px 16px;font-weight:700}
+.pri{background:var(--ink);color:#fff;width:100%;margin-top:14px}.gold{background:var(--gold);color:#fff}
+.sec{background:#fff;color:var(--ink);border:1px solid var(--line)}.bad{background:#fff;color:var(--bad);border:1px solid var(--bad)}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.row button{flex:1;min-width:110px;padding:10px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:#fff;border:1px solid var(--line);padding:8px 12px;border-radius:99px;font-size:14px;font-weight:500}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.tag{display:inline-block;padding:2px 10px;border-radius:99px;font-size:13px;background:#E8EDF2;margin-inline-end:6px}
+.s-new{background:#FFF3D6}.s-accepted{background:#DDF2E8}.s-rejected{background:#F7DEDC}
+.bar{height:6px;background:var(--line);border-radius:9px;margin:8px 0}.bar i{display:block;height:100%;background:var(--gold);border-radius:9px}
+.score{float:left;font-weight:800;color:var(--gold);font-size:18px}
+nav{position:fixed;bottom:0;inset-inline:0;background:#fff;border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom,0)}
+nav button{flex:1;background:none;color:var(--mut);padding:14px 4px;border-radius:0;font-size:14px}
+nav button.on{color:var(--ink);box-shadow:inset 0 3px 0 var(--gold)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.num{font-size:28px;font-weight:800}
+.modal{position:fixed;inset:0;background:rgba(18,38,58,.55);z-index:9;display:flex;align-items:flex-end}
+.sheet{background:#fff;width:100%;max-height:88vh;overflow:auto;border-radius:18px 18px 0 0;padding:18px;max-width:640px;margin:0 auto}
+#toast{position:fixed;top:70px;inset-inline:16px;background:var(--ink);color:#fff;padding:12px;border-radius:10px;text-align:center;z-index:20;display:none}
+.tabs{display:flex;gap:8px;margin-bottom:8px}.tabs button{flex:1}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+</style>
+</head>
+<body>
+<header><div class="logo">CAP<b>LINK</b></div><span id="who" class="mut" style="color:#C9D3DC"></span></header>
+<main id="main"></main>
+<nav id="nav" hidden></nav>
+<div id="toast"></div>
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/13.4.0/firebase-app.js";
+import{getAuth,onAuthStateChanged,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut}from"https://www.gstatic.com/firebasejs/13.4.0/firebase-auth.js";
+import{getFirestore,doc,getDoc,setDoc,updateDoc,addDoc,deleteDoc,collection,query,where,getDocs,increment,serverTimestamp}from"https://www.gstatic.com/firebasejs/13.4.0/firebase-firestore.js";
+
+const app=initializeApp({
+ apiKey:"AIzaSyAsUXh7zol9sn63qmfzJuREYKNpL8d4MoU",authDomain:"caplink-b0175.firebaseapp.com",projectId:"caplink-b0175",
+ storageBucket:"caplink-b0175.firebasestorage.app",messagingSenderId:"355247262751",appId:"1:355247262751:web:68aedd4b8fc3e45221d92a"});
+const auth=getAuth(app),db=getFirestore(app);
+
+const FIELDS=["تقنية","تجارة إلكترونية","زراعة","صناعة","عقارات","صحة","تعليم","أغذية ومطاعم","خدمات","أخرى"];
+const COUNTRIES=["مصر","السعودية","الإمارات","الكويت","قطر","البحرين","عُمان","الأردن","لبنان","العراق","سوريا","السودان","ليبيا","تونس","الجزائر","المغرب","اليمن","فلسطين","أخرى"];
+const STAGES=["فكرة","تحت التأسيس","قائم بالفعل"];
+const PARTNERS=["تمويل مقابل حصة","شريك تشغيلي","تمويل بدون حصة (قرض)"];
+const STATUS={new:"جديد",accepted:"مقبول",rejected:"مرفوض"};
+const S={u:null,p:null,admin:false,tab:"",reg:false,mode:"login"};
+const $=s=>document.querySelector(s),v=id=>document.getElementById(id)?.value.trim()||"";
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const opts=(a,sel)=>a.map(x=>`<option ${x===sel?"selected":""}>${x}</option>`).join("");
+const chips=(g,a,sel=[])=>`<div class="chips">${a.map(x=>`<button type="button" class="chip ${sel.includes(x)?"on":""}" data-g="${g}" onclick="this.classList.toggle('on')">${x}</button>`).join("")}</div>`;
+const picked=g=>[...document.querySelectorAll(`[data-g="${g}"].on`)].map(b=>b.textContent);
+const money=n=>Number(n||0).toLocaleString("ar-EG")+" $";
+function toast(t){const e=$("#toast");e.textContent=t;e.style.display="block";clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display="none",3200)}
+const err=x=>({"auth/email-already-in-use":"هذا البريد مسجل بالفعل. سجّل الدخول بدلًا من ذلك.","auth/invalid-credential":"البريد أو كلمة المرور غير صحيحة.","auth/invalid-email":"صيغة البريد غير صحيحة.","auth/weak-password":"كلمة المرور ضعيفة. استخدم 6 أحرف على الأقل.","permission-denied":"لا تملك صلاحية لهذا الإجراء."}[x.code]||"تعذّر تنفيذ العملية. تحقق من الاتصال وحاول مرة أخرى.");
+const score=(p,f)=>{if(!f)return 0;let s=0;
+ if(f.fields?.includes(p.field))s+=35;if(f.budget&&p.capital<=f.budget)s+=25;
+ if(f.countries?.includes(p.country))s+=15;if(f.stages?.includes(p.stage))s+=15;if(f.partners?.includes(p.partner))s+=10;return s};
+const list=async(c,...w)=>(await getDocs(w.length?query(collection(db,c),...w):collection(db,c))).docs.map(d=>({id:d.id,...d.data()}));
+
+/* ---------- الدخول والتسجيل ---------- */
+function authView(){
+ const reg=S.mode==="reg";
+ $("#nav").hidden=true;$("#who").textContent="";
+ $("#main").innerHTML=`<div class="card" style="margin-top:20px"><h2>${reg?"إنشاء حساب جديد":"مرحبًا بعودتك"}</h2>
+ <p class="mut">اربط فكرتك بالمستثمر المناسب، أو اعثر على الفرصة التي تناسب ميزانيتك.</p>
+ <div class="tabs"><button class="${reg?"sec":"pri"}" style="margin:0" onclick="A.mode('login')">دخول</button><button class="${reg?"pri":"sec"}" style="margin:0" onclick="A.mode('reg')">حساب جديد</button></div>
+ ${reg?`<label>الاسم</label><input id="n" autocomplete="name">
+ <label>أنا</label><div class="chips"><label class="chip"><input type="radio" name="r" value="owner" style="width:auto"> صاحب مشروع</label><label class="chip"><input type="radio" name="r" value="investor" style="width:auto"> مستثمر</label></div>`:""}
+ <label>البريد الإلكتروني</label><input id="e" type="email" dir="ltr" autocomplete="email">
+ <label>كلمة المرور</label><input id="p" type="password" dir="ltr" autocomplete="${reg?"new-password":"current-password"}">
+ <button class="pri" onclick="A.${reg?"reg":"login"}()">${reg?"إنشاء الحساب":"تسجيل الدخول"}</button></div>`;
+}
+
+/* ---------- الهيكل ---------- */
+function tabsFor(){
+ const t=S.p.role==="owner"?[["mine","مشروعاتي"],["reqs","الطلبات"]]:[["opps","الفرص"],["prefs","اهتماماتي"],["my","طلباتي"]];
+ if(S.admin)t.push(["dash","اللوحة"]);t.push(["me","حسابي"]);return t}
+async function render(){
+ if(!S.u)return authView();
+ const t=tabsFor();if(!t.find(x=>x[0]===S.tab))S.tab=t[0][0];
+ $("#who").textContent=S.p.name;
+ $("#nav").hidden=false;$("#nav").innerHTML=t.map(([k,l])=>`<button class="${k===S.tab?"on":""}" onclick="A.go('${k}')">${l}</button>`).join("");
+ $("#main").innerHTML='<p class="mut">جارٍ التحميل…</p>';
+ try{$("#main").innerHTML=await V[S.tab]()}catch(x){console.error(x);$("#main").innerHTML=`<div class="card">${err(x)}</div>`}
+}
+const sBadge=s=>`<span class="tag s-${s}">${STATUS[s]||s}</span>`;
+const pCard=(p,extra="")=>`<div class="card"><h3>${esc(p.name)}</h3><div class="mut">${esc(p.field)} · ${esc(p.country)}${p.city?"، "+esc(p.city):""}</div>
+ <div style="margin:8px 0"><span class="tag">${esc(p.stage)}</span><span class="tag">${esc(p.partner)}</span></div>
+ <div>المطلوب: <b>${money(p.capital)}</b></div>${extra}</div>`;
+
+/* ---------- الصفحات ---------- */
+const V={
+ async mine(){
+  const ps=await list("projects",where("ownerId","==",S.u.uid));
+  return `<h2>مشروعاتي</h2><button class="pri" style="margin:0 0 14px" onclick="A.form()">+ إضافة مشروع</button>`+
+   (ps.map(p=>pCard(p,`<div class="mut">المشاهدات: ${p.views||0}</div><div class="row"><button class="bad" onclick="A.del('${p.id}')">حذف</button></div>`)).join("")||'<div class="card mut">لا توجد مشروعات بعد. أضف مشروعك الأول ليراه المستثمرون.</div>')},
+ async reqs(){
+  const rs=await list("interests",where("ownerId","==",S.u.uid));
+  return `<h2>طلبات المستثمرين</h2>`+(rs.map(r=>`<div class="card">${sBadge(r.status)}<span class="tag">${r.type==="info"?"طلب معلومات":"طلب اهتمام"}</span>
+   <h3>${esc(r.projectName)}</h3><div>${esc(r.investorName)} · <a href="mailto:${esc(r.investorEmail)}" dir="ltr">${esc(r.investorEmail)}</a></div>
+   ${r.message?`<p class="mut">“${esc(r.message)}”</p>`:""}
+   <div class="row"><button class="gold" onclick="A.st('${r.id}','accepted')">قبول</button><button class="bad" onclick="A.st('${r.id}','rejected')">رفض</button></div></div>`).join("")||'<div class="card mut">لا توجد طلبات حتى الآن.</div>')},
+ async opps(){
+  const f=S.p.prefs,rej=S.p.rejected||[];
+  const ps=(await list("projects")).filter(p=>!rej.includes(p.id)).map(p=>({...p,s:score(p,f)})).filter(p=>!f||p.s>0).sort((a,b)=>b.s-a.s);
+  S.cache=ps;
+  return `<h2>الفرص المناسبة لك</h2>`+(f?"":'<div class="card">حدّد اهتماماتك أولًا لتظهر لك المشروعات الأقرب. افتح تبويب «اهتماماتي».</div>')+
+   ps.map(p=>pCard(p,`<span class="score">${p.s}%</span><div class="bar"><i style="width:${p.s}%"></i></div><div class="row"><button class="sec" onclick="A.open('${p.id}')">التفاصيل</button></div>`)).join("")||(f?'<div class="card mut">لا توجد مشروعات تطابق اهتماماتك الآن. جرّب توسيع المجالات أو الدول.</div>':"")},
+ async prefs(){
+  const f=S.p.prefs||{};
+  return `<h2>اهتماماتي الاستثمارية</h2><div class="card"><label>المجالات</label>${chips("f",FIELDS,f.fields)}
+   <label>الدول</label>${chips("c",COUNTRIES,f.countries)}<label>مراحل المشروع</label>${chips("s",STAGES,f.stages)}
+   <label>نوع الشراكة</label>${chips("pt",PARTNERS,f.partners)}
+   <label>الميزانية المتاحة (دولار)</label><input id="b" type="number" inputmode="numeric" value="${f.budget||""}">
+   <button class="pri" onclick="A.prefs()">حفظ الاهتمامات</button></div>`},
+ async my(){
+  const rs=await list("interests",where("investorId","==",S.u.uid));
+  return `<h2>طلباتي</h2>`+(rs.map(r=>`<div class="card">${sBadge(r.status)}<span class="tag">${r.type==="info"?"طلب معلومات":"طلب اهتمام"}</span><h3>${esc(r.projectName)}</h3></div>`).join("")||'<div class="card mut">لم ترسل أي طلب بعد.</div>')},
+ async dash(){
+  const[us,ps,rs]=await Promise.all([list("users"),list("projects"),list("interests")]);
+  const c=s=>rs.filter(r=>r.status===s).length,top=[...ps].sort((a,b)=>(b.views||0)-(a.views||0)).slice(0,5);
+  const box=(n,l)=>`<div class="card"><div class="num">${n}</div><div class="mut">${l}</div></div>`;
+  return `<h2>لوحة التحكم</h2><div class="grid">${box(us.length,"المستخدمون")}${box(ps.length,"المشروعات")}${box(us.filter(u=>u.role==="investor").length,"المستثمرون")}${box(rs.length,"طلبات الاهتمام")}</div>
+  <div class="card"><h3>حالة الطلبات</h3>${sBadge("new")} ${c("new")} &nbsp; ${sBadge("accepted")} ${c("accepted")} &nbsp; ${sBadge("rejected")} ${c("rejected")}</div>
+  <div class="card"><h3>الأكثر مشاهدة</h3>${top.map(p=>`<div>${esc(p.name)} <b style="float:left">${p.views||0}</b></div>`).join("")||'<span class="mut">لا بيانات بعد.</span>'}</div>`},
+ async me(){
+  return `<h2>حسابي</h2><div class="card"><div class="mut">${S.p.role==="owner"?"صاحب مشروع":"مستثمر"} · <span dir="ltr">${esc(S.p.email)}</span></div>
+  <label>الاسم</label><input id="n" value="${esc(S.p.name)}"><label>رقم الهاتف</label><input id="ph" dir="ltr" value="${esc(S.p.phone)}">
+  <label>نبذة عنك</label><textarea id="bio">${esc(S.p.bio)}</textarea><button class="pri" onclick="A.save()">حفظ</button>
+  <button class="sec" style="width:100%;margin-top:10px" onclick="A.out()">تسجيل الخروج</button></div>`}
+};
+
+/* ---------- الإجراءات ---------- */
+const A=window.A={
+ mode:m=>{S.mode=m;authView()},
+ go:k=>{S.tab=k;render()},
+ async reg(){const n=v("n"),e=v("e"),p=document.getElementById("p").value,r=document.querySelector("input[name=r]:checked")?.value;
+  if(!n||!e||!r)return toast("أكمل الاسم والبريد واختر نوع الحساب.");
+  try{S.reg=true;const c=await createUserWithEmailAndPassword(auth,e,p);
+   await setDoc(doc(db,"users",c.user.uid),{name:n,email:e,role:r,createdAt:serverTimestamp()});S.reg=false;await boot(c.user)}
+  catch(x){S.reg=false;toast(err(x))}},
+ async login(){try{await signInWithEmailAndPassword(auth,v("e"),document.getElementById("p").value)}catch(x){toast(err(x))}},
+ out:()=>signOut(auth),
+ async save(){try{const d={name:v("n")||S.p.name,phone:v("ph"),bio:v("bio")};await updateDoc(doc(db,"users",S.u.uid),d);Object.assign(S.p,d);toast("تم حفظ بياناتك.");render()}catch(x){toast(err(x))}},
+ async prefs(){const f={fields:picked("f"),countries:picked("c"),stages:picked("s"),partners:picked("pt"),budget:Number(v("b"))||0};
+  try{await updateDoc(doc(db,"users",S.u.uid),{prefs:f});S.p.prefs=f;toast("تم حفظ اهتماماتك.");A.go("opps")}catch(x){toast(err(x))}},
+ form(){const m=document.createElement("div");m.className="modal";m.innerHTML=`<div class="sheet"><h2>مشروع جديد</h2>
+  <label>اسم المشروع</label><input id="pn"><label>وصف المشروع</label><textarea id="pd"></textarea>
+  <label>المجال</label><select id="pf">${opts(FIELDS)}</select><label>الدولة</label><select id="pc">${opts(COUNTRIES)}</select>
+  <label>المدينة</label><input id="pcity"><label>مرحلة المشروع</label><select id="ps">${opts(STAGES)}</select>
+  <label>رأس المال المطلوب (دولار)</label><input id="pcap" type="number" inputmode="numeric">
+  <label>نوع الشراكة المطلوبة</label><select id="ppt">${opts(PARTNERS)}</select>
+  <button class="pri" onclick="A.add()">نشر المشروع</button><button class="sec" style="width:100%;margin-top:8px" onclick="this.closest('.modal').remove()">إلغاء</button></div>`;document.body.append(m)},
+ async add(){const d={name:v("pn"),desc:v("pd"),field:v("pf"),country:v("pc"),city:v("pcity"),stage:v("ps"),capital:Number(v("pcap")),partner:v("ppt")};
+  if(!d.name||!d.desc||!d.capital)return toast("أدخل اسم المشروع ووصفه ورأس المال المطلوب.");
+  try{await addDoc(collection(db,"projects"),{...d,ownerId:S.u.uid,ownerName:S.p.name,views:0,createdAt:serverTimestamp()});
+   document.querySelector(".modal").remove();toast("تم نشر مشروعك.");render()}catch(x){toast(err(x))}},
+ async del(id){if(!confirm("حذف هذا المشروع نهائيًا؟"))return;try{await deleteDoc(doc(db,"projects",id));render()}catch(x){toast(err(x))}},
+ async st(id,s){try{await updateDoc(doc(db,"interests",id),{status:s});toast("تم تحديث حالة الطلب.");render()}catch(x){toast(err(x))}},
+ async open(id){const p=S.cache.find(x=>x.id===id);
+  updateDoc(doc(db,"projects",id),{views:increment(1)}).catch(()=>{});
+  const m=document.createElement("div");m.className="modal";
+  m.innerHTML=`<div class="sheet"><h2>${esc(p.name)}</h2><p>${esc(p.desc)}</p><div class="mut">${esc(p.field)} · ${esc(p.country)} ${esc(p.city)} · ${esc(p.stage)}</div>
+  <p>رأس المال المطلوب: <b>${money(p.capital)}</b><br>الشراكة: ${esc(p.partner)}</p>
+  <div class="row"><button class="gold" onclick="A.int('${id}','interest')">أبدي اهتمامي</button><button class="sec" onclick="A.int('${id}','info')">اطلب معلومات</button></div>
+  <div class="row"><button class="bad" onclick="A.no('${id}')">غير مناسب</button><button class="sec" onclick="this.closest('.modal').remove()">إغلاق</button></div></div>`;document.body.append(m)},
+ async int(id,type){const p=S.cache.find(x=>x.id===id);
+  const msg=prompt(type==="info"?"ما المعلومات التي تحتاجها؟":"رسالة قصيرة لصاحب المشروع (اختياري)")||"";
+  try{await setDoc(doc(db,"interests",id+"_"+S.u.uid),{projectId:id,projectName:p.name,ownerId:p.ownerId,investorId:S.u.uid,investorName:S.p.name,investorEmail:S.p.email,type,message:msg,status:"new",createdAt:serverTimestamp()});
+   document.querySelector(".modal")?.remove();toast("تم إرسال طلبك لصاحب المشروع.")}catch(x){toast(err(x))}},
+ async no(id){const r=[...(S.p.rejected||[]),id];try{await updateDoc(doc(db,"users",S.u.uid),{rejected:r});S.p.rejected=r;document.querySelector(".modal")?.remove();render()}catch(x){toast(err(x))}}
+};
+
+async function boot(u){
+ S.u=u;const d=await getDoc(doc(db,"users",u.uid));
+ if(!d.exists()){toast("لم يُعثر على ملفك الشخصي.");return signOut(auth)}
+ S.p=d.data();S.admin=false;try{S.admin=(await getDoc(doc(db,"admins",u.uid))).exists()}catch(e){}
+ S.tab="";render()}
+onAuthStateChanged(auth,u=>{if(S.reg)return;if(u)boot(u).catch(x=>toast(err(x)));else{S.u=null;S.p=null;render()}});
+</script>
+</body>
+</html>
